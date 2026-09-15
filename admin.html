@@ -164,6 +164,8 @@
         <h1>Activos Fijos</h1>
         <div class="sub" id="contador-sub">Cargando…</div>
       </div>
+      <button onclick="document.getElementById('input-excel').click()" style="background:#f0f2f4; color:var(--ink); margin-right:8px;">⇧ Importar Excel</button>
+      <input type="file" id="input-excel" accept=".xlsx,.xls" style="display:none;" onchange="importarExcel(event)">
       <button onclick="abrirModal()">+ Nuevo activo</button>
     </div>
     <div class="topbar" id="topbar-escaneos" style="display:none;">
@@ -328,6 +330,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
   const SUPABASE_URL = 'https://icgkeajnhtzbczefjoxs.supabase.co';
@@ -672,6 +675,82 @@
     document.getElementById('f-specs').value =
       `SO: ${e.sistema_operativo || ''}\nProcesador: ${e.procesador || ''}\nRAM: ${e.ram_gb || ''} GB\n` +
       `Almacenamiento: ${e.almacenamiento || ''}\nId. dispositivo: ${e.id_dispositivo || ''}\nId. producto: ${e.id_producto || ''}`;
+  }
+
+  // ---- Importar Excel ----
+  const MAPA_COLUMNAS_EXCEL = {
+    "Codigo": "codigo",
+    "Tipo de activo": "tipo_activo",
+    "Marca": "marca",
+    "Modelo": "modelo",
+    "Color": "color",
+    "Serie / SN": "serie",
+    "Responsable actual": "responsable_actual",
+    "Cedula responsable": "cedula_responsable",
+    "Ubicacion": "ubicacion",
+    "Departamento": "departamento",
+    "Estado": "estado",
+    "Fecha ultima entrega (AAAA-MM-DD)": "fecha_ultima_entrega",
+    "Proveedor": "proveedor",
+    "Factura": "factura",
+    "Valor de compra": "valor_compra",
+    "Garantia": "garantia",
+    "Especificaciones tecnicas": "especificaciones_tecnicas",
+    "Estado fisico": "estado_fisico",
+    "Fuente": "fuente",
+    "Historial": "historial",
+    "Observaciones": "observaciones",
+  };
+
+  function importarExcel(event){
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+      const hoja = wb.Sheets["Activos"] || wb.Sheets[wb.SheetNames[0]];
+      const filas = XLSX.utils.sheet_to_json(hoja, { defval: "" });
+
+      const activosNuevos = [];
+      for (const fila of filas){
+        const obj = {};
+        for (const [colExcel, campoDb] of Object.entries(MAPA_COLUMNAS_EXCEL)){
+          let val = fila[colExcel];
+          if (val === "" || val === undefined) val = null;
+          obj[campoDb] = val;
+        }
+        if (!obj.codigo) continue; // fila vacía o de ejemplo sin código
+        obj.codigo = String(obj.codigo).trim().toUpperCase();
+        if (obj.valor_compra) obj.valor_compra = parseFloat(obj.valor_compra) || null;
+        if (obj.fecha_ultima_entrega instanceof Date){
+          obj.fecha_ultima_entrega = obj.fecha_ultima_entrega.toISOString().split('T')[0];
+        }
+        obj.updated_at = new Date().toISOString();
+        activosNuevos.push(obj);
+      }
+
+      if (activosNuevos.length === 0){
+        alert('No se encontraron filas con Código en el archivo. Revisa que llenaste la hoja "Activos".');
+        event.target.value = '';
+        return;
+      }
+
+      const codigos = activosNuevos.map(a => a.codigo).join(', ');
+      const confirmar = confirm(
+        `Se van a cargar ${activosNuevos.length} activo(s):\n${codigos}\n\n` +
+        `Si un código ya existe, se ACTUALIZARÁ con estos datos. ¿Continuar?`
+      );
+      if (!confirmar){ event.target.value = ''; return; }
+
+      const { error } = await sb.from('activos_fijos').upsert(activosNuevos, { onConflict: 'codigo' });
+      event.target.value = '';
+      if (error){ alert('Error al importar: ' + error.message); return; }
+
+      alert(`${activosNuevos.length} activo(s) importado(s) correctamente.`);
+      await cargarActivos();
+    };
+    reader.readAsArrayBuffer(file);
   }
 
   cargarActivos();
