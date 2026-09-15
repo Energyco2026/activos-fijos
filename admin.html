@@ -147,25 +147,34 @@
     </div>
     <nav>
       <div class="nav-label">General</div>
-      <button class="nav-item active" onclick="filtrarPorEstado(null)"><span class="dot"></span> Todos los activos</button>
+      <button class="nav-item active" id="nav-activos" onclick="cambiarVista('activos'); filtrarPorEstado(null)"><span class="dot"></span> Todos los activos</button>
       <div class="nav-label">Por estado</div>
-      <button class="nav-item" onclick="filtrarPorEstado('Asignado')"><span class="dot"></span> Asignados</button>
-      <button class="nav-item" onclick="filtrarPorEstado('Disponible')"><span class="dot"></span> Disponibles</button>
-      <button class="nav-item" onclick="filtrarPorEstado('En reparación')"><span class="dot"></span> En reparación</button>
-      <button class="nav-item" onclick="filtrarPorEstado('Baja')"><span class="dot"></span> De baja</button>
+      <button class="nav-item" onclick="cambiarVista('activos'); filtrarPorEstado('Asignado')"><span class="dot"></span> Asignados</button>
+      <button class="nav-item" onclick="cambiarVista('activos'); filtrarPorEstado('Disponible')"><span class="dot"></span> Disponibles</button>
+      <button class="nav-item" onclick="cambiarVista('activos'); filtrarPorEstado('En reparación')"><span class="dot"></span> En reparación</button>
+      <button class="nav-item" onclick="cambiarVista('activos'); filtrarPorEstado('Baja')"><span class="dot"></span> De baja</button>
+      <div class="nav-label">Automatización</div>
+      <button class="nav-item" id="nav-escaneos" onclick="cambiarVista('escaneos')"><span class="dot"></span> Escaneos de hardware</button>
     </nav>
   </aside>
 
   <div class="content">
-    <div class="topbar">
+    <div class="topbar" id="topbar-activos">
       <div>
         <h1>Activos Fijos</h1>
         <div class="sub" id="contador-sub">Cargando…</div>
       </div>
       <button onclick="abrirModal()">+ Nuevo activo</button>
     </div>
+    <div class="topbar" id="topbar-escaneos" style="display:none;">
+      <div>
+        <h1>Escaneos de Hardware</h1>
+        <div class="sub" id="contador-sub-escaneos">Cargando…</div>
+      </div>
+    </div>
 
     <main>
+    <div id="vista-activos">
       <div class="kpis">
         <div class="kpi"><div class="n" id="kpi-total">–</div><div class="l">Total activos</div></div>
         <div class="kpi ok"><div class="n" id="kpi-asignados">–</div><div class="l">Asignados</div></div>
@@ -193,6 +202,38 @@
         </table>
         <div class="empty" id="empty-msg" style="display:none;">No hay activos que coincidan con la búsqueda.</div>
       </div>
+    </div>
+
+    <div id="vista-escaneos" style="display:none;">
+      <div class="kpis">
+        <div class="kpi"><div class="n" id="kpi-esc-total">–</div><div class="l">Equipos escaneados</div></div>
+        <div class="kpi ok"><div class="n" id="kpi-esc-win">–</div><div class="l">Windows</div></div>
+        <div class="kpi"><div class="n" id="kpi-esc-mac">–</div><div class="l">Mac</div></div>
+        <div class="kpi amber"><div class="n" id="kpi-esc-deptos">–</div><div class="l">Departamentos distintos</div></div>
+      </div>
+
+      <div class="card-panel">
+        <div class="toolbar">
+          <input type="text" id="buscador-escaneos" placeholder="Buscar por empleado, equipo, departamento o serie…" oninput="renderTablaEscaneos()">
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Empleado</th>
+              <th>Departamento</th>
+              <th>Equipo</th>
+              <th>Sistema Operativo</th>
+              <th>RAM</th>
+              <th>Fecha de envío</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody-escaneos"></tbody>
+        </table>
+        <div class="empty" id="empty-msg-escaneos" style="display:none;">Todavía no hay escaneos registrados.</div>
+      </div>
+    </div>
     </main>
   </div>
 </div>
@@ -254,6 +295,21 @@
         <button type="submit" class="btn primary">Guardar</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Modal de detalle de escaneo -->
+<div class="overlay" id="escaneo-modal">
+  <div class="modal" style="max-width:700px;">
+    <button class="close" onclick="cerrarEscaneoModal()">✕</button>
+    <h2 id="esc-titulo">Equipo</h2>
+    <div class="field-grid" id="esc-detalle" style="margin-top:10px;"></div>
+    <div class="section-title">Software instalado</div>
+    <div id="esc-software" style="max-height:180px; overflow-y:auto; font-size:12.5px; line-height:1.7; color:var(--steel);"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" onclick="cerrarEscaneoModal()">Cerrar</button>
+      <button type="button" class="btn primary" onclick="usarEscaneoParaFicha()">Usar para crear/actualizar activo</button>
+    </div>
   </div>
 </div>
 
@@ -504,6 +560,118 @@
     link.download = `${qrActivoActual.codigo}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
+  }
+
+  // ---- Vistas (Activos / Escaneos) ----
+  function cambiarVista(vista){
+    document.getElementById('vista-activos').style.display = vista === 'activos' ? '' : 'none';
+    document.getElementById('vista-escaneos').style.display = vista === 'escaneos' ? '' : 'none';
+    document.getElementById('topbar-activos').style.display = vista === 'activos' ? '' : 'none';
+    document.getElementById('topbar-escaneos').style.display = vista === 'escaneos' ? '' : 'none';
+    document.getElementById('nav-activos').classList.toggle('active', vista === 'activos');
+    document.getElementById('nav-escaneos').classList.toggle('active', vista === 'escaneos');
+    if (vista === 'escaneos' && escaneos.length === 0) cargarEscaneos();
+  }
+
+  // ---- Escaneos de hardware ----
+  let escaneos = [];
+
+  async function cargarEscaneos(){
+    const { data, error } = await sb.from('inventario_hardware_escaneado').select('*').order('fecha_escaneo', { ascending:false });
+    if (error){ alert('Error cargando escaneos: ' + error.message); return; }
+    escaneos = data;
+    document.getElementById('contador-sub-escaneos').textContent = `${escaneos.length} escaneo(s) registrados`;
+    actualizarKpisEscaneos();
+    renderTablaEscaneos();
+  }
+
+  function actualizarKpisEscaneos(){
+    document.getElementById('kpi-esc-total').textContent = escaneos.length;
+    document.getElementById('kpi-esc-win').textContent = escaneos.filter(e => (e.sistema_operativo||'').toLowerCase().includes('windows')).length;
+    document.getElementById('kpi-esc-mac').textContent = escaneos.filter(e => (e.sistema_operativo||'').toLowerCase().includes('mac')).length;
+    document.getElementById('kpi-esc-deptos').textContent = new Set(escaneos.map(e => e.departamento).filter(Boolean)).size;
+  }
+
+  function renderTablaEscaneos(){
+    const q = document.getElementById('buscador-escaneos').value.trim().toLowerCase();
+    const filtrados = escaneos.filter(e =>
+      !q || [e.empleado_nombre, e.nombre_equipo, e.departamento, e.numero_serie]
+        .some(v => (v||'').toLowerCase().includes(q))
+    );
+    const tbody = document.getElementById('tbody-escaneos');
+    tbody.innerHTML = '';
+    document.getElementById('empty-msg-escaneos').style.display = filtrados.length ? 'none' : 'block';
+    for (const e of filtrados){
+      const tr = document.createElement('tr');
+      const fecha = e.fecha_escaneo ? new Date(e.fecha_escaneo).toLocaleString('es-EC', { dateStyle:'short', timeStyle:'short' }) : '';
+      tr.innerHTML = `
+        <td>${e.empleado_nombre || 'No consta'}</td>
+        <td>${e.departamento || 'No consta'}</td>
+        <td>${e.nombre_equipo || 'No consta'}</td>
+        <td>${e.sistema_operativo || 'No consta'}</td>
+        <td>${e.ram_gb ? e.ram_gb + ' GB' : 'No consta'}</td>
+        <td>${fecha}</td>
+        <td class="row-actions">
+          <button onclick="verEscaneo('${e.id}')">Ver detalle</button>
+        </td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  let escaneoActual = null;
+
+  function verEscaneo(id){
+    const e = escaneos.find(x => x.id === id);
+    if (!e) return;
+    escaneoActual = e;
+    document.getElementById('esc-titulo').textContent = e.nombre_equipo || e.empleado_nombre;
+
+    const campos = [
+      ['Empleado', e.empleado_nombre], ['Departamento', e.departamento],
+      ['Sistema operativo', e.sistema_operativo], ['Marca', e.marca], ['Modelo', e.modelo],
+      ['Procesador', e.procesador], ['RAM', e.ram_gb ? e.ram_gb + ' GB' : ''],
+      ['Almacenamiento', e.almacenamiento], ['Espacio libre', e.espacio_libre_gb ? e.espacio_libre_gb + ' GB' : ''],
+      ['Número de serie', e.numero_serie], ['Id. del dispositivo', e.id_dispositivo], ['Id. del producto', e.id_producto],
+      ['Usuario del sistema', e.usuario_sistema], ['IP', e.direccion_ip], ['MAC', e.direccion_mac],
+      ['Dominio', e.dominio], ['Antivirus', e.antivirus],
+      ['Último arranque', e.ultimo_arranque ? new Date(e.ultimo_arranque).toLocaleString('es-EC') : ''],
+      ['Fecha de envío', e.fecha_escaneo ? new Date(e.fecha_escaneo).toLocaleString('es-EC') : ''],
+    ];
+    document.getElementById('esc-detalle').innerHTML = campos.map(([label, val]) => `
+      <div class="field"><label>${label}</label><div style="padding:6px 0; font-size:13px;">${val || 'No consta'}</div></div>
+    `).join('');
+
+    const software = e.software_instalado || [];
+    document.getElementById('esc-software').innerHTML = software.length
+      ? software.map(s => `${s.nombre}${s.version ? ' — v' + s.version : ''}`).join('<br>')
+      : 'No se detectó software instalado.';
+
+    document.getElementById('escaneo-modal').classList.add('show');
+  }
+  function cerrarEscaneoModal(){ document.getElementById('escaneo-modal').classList.remove('show'); }
+
+  function usarEscaneoParaFicha(){
+    const e = escaneoActual;
+    if (!e) return;
+    cerrarEscaneoModal();
+    cambiarVista('activos');
+
+    const existente = activos.find(a => a.serie && e.numero_serie && a.serie === e.numero_serie);
+
+    abrirModal();
+    if (existente){
+      editarActivo(existente.id);
+    }
+    document.getElementById('f-marca').value = e.marca || '';
+    document.getElementById('f-modelo').value = e.modelo || '';
+    document.getElementById('f-serie').value = e.numero_serie || '';
+    document.getElementById('f-responsable').value = e.empleado_nombre || '';
+    document.getElementById('f-ubicacion').value = e.departamento || '';
+    document.getElementById('f-tipo').value = document.getElementById('f-tipo').value || 'Laptop / Desktop';
+    document.getElementById('f-fuente').value = 'Escaneo automático de hardware';
+    document.getElementById('f-specs').value =
+      `SO: ${e.sistema_operativo || ''}\nProcesador: ${e.procesador || ''}\nRAM: ${e.ram_gb || ''} GB\n` +
+      `Almacenamiento: ${e.almacenamiento || ''}\nId. dispositivo: ${e.id_dispositivo || ''}\nId. producto: ${e.id_producto || ''}`;
   }
 
   cargarActivos();
