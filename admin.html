@@ -372,11 +372,11 @@
     ctx.fillStyle = '#14202b';
     ctx.fillRect(0,0,W,56);
 
-    function dibujarTextos(){
+    function dibujarTextos(logoAncho){
       ctx.fillStyle = '#ffffff';
-      ctx.font = '600 15px Arial';
+      ctx.font = '600 14px Arial';
       ctx.textAlign = 'left';
-      ctx.fillText('ENERGYCONTROL', 16, 34);
+      ctx.fillText('ENERGYCONTROL', 16 + logoAncho, 33);
 
       // QR centrado
       const qrSize = 260;
@@ -401,12 +401,14 @@
     if (LOGO_DATA_URL){
       const logo = new Image();
       logo.onload = () => {
-        ctx.drawImage(logo, 12, 8, 40, 40);
-        dibujarTextos();
+        const logoAlto = 32;
+        const logoAncho = logoAlto * (logo.naturalWidth / logo.naturalHeight);
+        ctx.drawImage(logo, 14, 12, logoAncho, logoAlto);
+        dibujarTextos(logoAncho + 10);
       };
       logo.src = LOGO_DATA_URL;
     } else {
-      dibujarTextos();
+      dibujarTextos(0);
     }
   }
 
