@@ -801,6 +801,23 @@
       .toUpperCase().trim().replace(/\s+/g, ' ');
   }
 
+  function palabrasNombre(nombre){
+    return new Set(normalizarNombre(nombre).split(' ').filter(Boolean));
+  }
+
+  // Coincide si todas las palabras de un nombre están contenidas en el otro
+  // (cubre el caso Odoo "Apellido Apellido Nombre Nombre" vs como la gente escribe su nombre)
+  function nombresCoinciden(nombreA, nombreB){
+    const a = palabrasNombre(nombreA);
+    const b = palabrasNombre(nombreB);
+    if (a.size === 0 || b.size === 0) return false;
+    const [chico, grande] = a.size <= b.size ? [a, b] : [b, a];
+    for (const palabra of chico){
+      if (!grande.has(palabra)) return false;
+    }
+    return true;
+  }
+
   async function cargarPendientes(){
     document.getElementById('contador-sub-pendientes').textContent = 'Cargando…';
 
@@ -812,10 +829,10 @@
     if (err1){ alert('Error cargando nómina: ' + err1.message); return; }
     if (err2){ alert('Error cargando escaneos: ' + err2.message); return; }
 
-    const enviaron = new Set(escaneosData.map(e => normalizarNombre(e.empleado_nombre)));
+    const enviaron = escaneosData.map(e => e.empleado_nombre);
 
     pendientes = nomina
-      .filter(emp => !enviaron.has(normalizarNombre(emp.empleado_nombre)))
+      .filter(emp => !enviaron.some(nombreEscaneado => nombresCoinciden(emp.empleado_nombre, nombreEscaneado)))
       .sort((a, b) => (a.empleado_nombre||'').localeCompare(b.empleado_nombre||''));
 
     document.getElementById('kpi-pend-nomina').textContent = nomina.length;
