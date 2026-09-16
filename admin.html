@@ -818,6 +818,14 @@
     return true;
   }
 
+  const SIN_COMPUTADORA = [
+    'Lastra Cordero Marlon',
+    'Anchundia Uriña Maximo Geovanny',
+    'De La Cruz Arzube Jhonatan',
+    'Leon Garces Pedro',
+    'Martinez Castro'
+  ];
+
   async function cargarPendientes(){
     document.getElementById('contador-sub-pendientes').textContent = 'Cargando…';
 
@@ -833,6 +841,7 @@
 
     pendientes = nomina
       .filter(emp => !enviaron.some(nombreEscaneado => nombresCoinciden(emp.empleado_nombre, nombreEscaneado)))
+      .filter(emp => !SIN_COMPUTADORA.some(nombreExcluido => nombresCoinciden(emp.empleado_nombre, nombreExcluido)))
       .sort((a, b) => (a.empleado_nombre||'').localeCompare(b.empleado_nombre||''));
 
     document.getElementById('kpi-pend-nomina').textContent = nomina.length;
